@@ -9,6 +9,10 @@ def parse_args():
                         default='dataset.lst', type=str)
     parser.add_argument('--det-results', dest='det_results', help='detection results dir',
                         default='detection_results/FPN,detection_results/ssd', type=str)
+    parser.add_argument('--score-thresholds', dest='thresholds', help="detection results score's threshold.",
+                        default='0.25,0.25', type=str)
+    parser.add_argument('--show-titles', dest='combinations_name', help="detection results score's threshold.",
+                        default='FPN,ssd,FPN+ssd', type=str)
     return parser.parse_args()
 
 if __name__ == '__main__':
@@ -27,12 +31,15 @@ if __name__ == '__main__':
         # assert len(dataset) == len(result_datas[-1]), result_dir
 
     # 3. show images
-    args = {'index': 0, 'exit': False}
+    thresholds = [float(e) for e in args.thresholds.split(',')]
+    combinations_name = args.combinations_name.split(',')
+    
+    var = {'index': 0, 'exit': False}
     fig, axes = plt.subplots(2, 2, figsize=(16, 10))
-    last_next_bt = LastNextButtonV2(fig, axes, args, interval=0.1)
-    while not args['exit']:
-        args['index'] = args['index'] % len(dataset)
-        data, label, vid = dataset[args['index']]
+    last_next_bt = LastNextButtonV2(fig, axes, var, interval=0.1)
+    while not var['exit']:
+        var['index'] = var['index'] % len(dataset)
+        data, label, vid = dataset[var['index']]
         vid[-1] += 1
         image_name = CaltechPathParser.id2path(vid)
         # print(data.shape, label.shape, image_name, result_data[image_name])
@@ -40,14 +47,14 @@ if __name__ == '__main__':
         bboxes = [result_data[image_name] for result_data in result_datas]
         print(image_name)
         fig, axes = show_multi_det_result(data/255, bboxes, label, show_origin=True,
-                                          thresholds=[0.25, 0.25],
+                                          thresholds=thresholds, #[0.845791, 0.936530],
                                           colors=['red', 'blue'],
                                           label_color='green',
                                           normalized_label=False,
                                           # figsize=(16, 10), MN=(2, 2),
                                           hwspace=(0.1, 0),
                                           show_combinations=[[0], [1], [0, 1]],
-                                          combinations_name=['temp', 'temp2', 'temp1+temp2'],
+                                          combinations_name=['FPN', 'ATT', 'FPN+ATT'],
                                           show_text=False,
                                           class_names=None,
                                           use_real_line=[True, False, False, False],

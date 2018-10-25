@@ -17,7 +17,16 @@ for more detail to generate your dataset lst file, you can change or use functio
 ### 2. run result_viewer to view detect result
 ```sh
 python3 result_viewer_v3.py --lst-file=./dataset.lst --det-results=./detection_results
+
+# python result_viewer_v3.py --lst-file=caltech/lst/test.lst --det-results=res/caltech_1gpu_e2e_faster_rcnn_R-50-FPN_v9_23-27999-merge,res/FasterRCNN+ATT  --score-threshold=0.845791,0.936530 --show-titles=FPN,ATT
 ```
+
+### 3. some operator
+> * left arrowhead to show last image.
+> * right arrowhead to show next image.
+> * enter to auto switch image, enter again to stop.
+> * Esc to escape and end program.
+
 
 ## more
 ### viewer arugument

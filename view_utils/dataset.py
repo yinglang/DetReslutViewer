@@ -4,7 +4,7 @@
 import numpy as np
 import os
 import cv2
-
+import re
 
 class LstDataset(object):
     """A dataset for loading from lst files, line store (image_path, label_path) pair fomat like::
@@ -197,7 +197,7 @@ class CaltechResultData(object):
         result_file = open(result_file)
         results = {}
         for line in result_file.readlines():
-            image_id, x, y, w, h, score = [float(e) for e in line.split(',')]
+            image_id, x, y, w, h, score = [float(e) for e in re.split('[, ]', line)]
             if image_id not in results:
                 results[image_id] = []
             results[image_id].append((x, y, x+w, y+h, 0, score))
