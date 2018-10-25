@@ -1,0 +1,18 @@
+[submodule "third/ssd.pytorch"]
+	path = third/ssd.pytorch
+	url = https://github.com/yinglang/ssd.pytorch
+[submodule "third/PytorchSSD"]
+	path = third/PytorchSSD
+	url = https://github.com/yinglang/PytorchSSD
+[submodule "third/mxnet-ssd"]
+	path = third/mxnet-ssd
+	url = https://github.com/yinglang/mxnet-ssd
+[submodule "third/mxnet-dssd"]
+	path = third/mxnet-dssd
+	url = https://github.com/yinglang/mxnet-dssd
+[submodule "third/py-faster-rcnn"]
+	path = third/py-faster-rcnn
+	url = https://github.com/yinglang/py-faster-rcnn
+[submodule "third/R-FCN"]
+	path = third/R-FCN
+	url = https://github.com/yinglang/R-FCN
