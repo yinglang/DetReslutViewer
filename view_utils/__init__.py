@@ -2,6 +2,7 @@ from .visualize import *
 from .dataset import *
 from enum import Enum
 
+
 class VisState(Enum):
     """
         state:
@@ -15,8 +16,9 @@ class VisState(Enum):
     auto = 1
     exit = 2
 
+
 class LastNextButtonV2(object):
-    def __init__(self, fig, axes, args):
+    def __init__(self, fig, axes, args, interval=None):
         # plt.text(-1000, 0., "last", size=50, ha="center", va="center",
         #          bbox=dict(boxstyle="round",
         #                    ec=(1., 0.5, 0.5),
@@ -35,6 +37,8 @@ class LastNextButtonV2(object):
         fig.canvas.mpl_connect('key_release_event', self.on_key)
         self.args = args
         self.state = VisState.normal
+        # self.interval = interval
+        self.interval = 0.1 if interval is None else interval
 
     def on_key(self, event):
         if event.key == 'left':
@@ -60,7 +64,7 @@ class LastNextButtonV2(object):
             return
 
         plt.draw()
-        plt.pause(0.1)
+        plt.pause(self.interval)
         if self.state == VisState.auto:
             self.args['index'] += 1
             for ax in self.axes.reshape((-1,)):

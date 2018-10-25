@@ -2,14 +2,11 @@ from view_utils import *
 import matplotlib.pyplot as plt
 
 # 1.load dataset
-data_root = '../../dataset/CaltechPedestrians/'
-lst_dir = data_root + 'caltech/lst/'
 label_parser = CaltechLabelParser()
-dataset = LstDataset_v2(lst_dir+'test.lst', label_parser)
+dataset = LstDataset_v2('dataset.lst', label_parser)
 
 # 2. load detection result
-result_dirs = ['/home/hui/dataset/CaltechPedestrians/origin/res/temp',
-               '/home/hui/dataset/CaltechPedestrians/origin/res/caltech_1gpu_e2e_faster_rcnn_R-50-FPN_v1_08-13999-480x640-blur']
+result_dirs = ['detection_results/ssd', 'detection_results/FPN']
 result_datas = []
 for result_dir in result_dirs:
     result_datas.append(CaltechResultData(result_dir, False))
@@ -37,6 +34,8 @@ while not args['exit']:
                                       hwspace=(0.1, 0),
                                       show_combinations=[[0], [1], [0, 1]],
                                       combinations_name=['temp', 'temp2', 'temp1+temp2'],
+                                      show_text=False,
+                                      class_names=None,
                                       use_real_line=[True, False, False, False],
                                       axes=axes, fig=fig)
 

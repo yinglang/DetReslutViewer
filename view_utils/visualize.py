@@ -25,17 +25,21 @@ def inv_normalize_box(bboxes, w, h):
     return bboxes
 
 
-def draw_bbox(fig, bboxes, color=(0, 0, 0), linewidth=1, fontsize=5,
-              normalized_label=True, wh=None, show_text=False, use_real_line=None, threshold=None):
+def draw_bbox(fig, bboxes, color=(0, 0, 0), linewidth=1, fontsize=5, normalized_label=True, wh=None,
+              show_text=False, class_names=None, class_colors=None, use_real_line=None, threshold=None):
     """
         draw boxes on fig
 
     argumnet:
         bboxes: [[x1, y1, x2, y2, (cid), (score) ...]],
+        color: box color, if class_colors not None, it will not use.
         normalized_label: if label xmin, xmax, ymin, ymax is normaled to 0~1, set it to True and wh must given, else set to False.
         wh: (image width, height) needed when normalized_label set to True
         show_text: if boxes have cid or (cid, score) dim, can set to True to visualize it.
+
         use_real_line: None means all box use real line to draw, or [boolean...] means whether use real line for per class label.
+        class_names: class name for every class.
+        class_colors: class gt box color for every class, if set, argument 'color' will not use
     """
     if np.max(bboxes) <= 1.:
         if normalized_label == False: warnings.warn(
@@ -49,17 +53,24 @@ def draw_bbox(fig, bboxes, color=(0, 0, 0), linewidth=1, fontsize=5,
     if normalized_label:
         assert wh != None, "wh must be specified when normalized_label is True. maybe you need setnormalized_label=False "
         bboxes = inv_normalize_box(bboxes, wh[0], wh[1])
+
+    if color is not None and class_colors is not None:
+        warnings.warn("'class_colors' set, then 'color' will not use, please set it to None")
+
     for box in bboxes:
         # [x1, y1, x2, y2, (cid), (score) ...]
         if len(box) >= 5 and box[4] < 0: continue  # have cid or not
         if len(box) >= 6 and threshold is not None and box[5] < threshold: continue
+        if len(box) >= 5 and class_colors is not None: color = class_colors[int(box[4])]
         if len(box) >= 5 and use_real_line is not None and not use_real_line[int(box[4])]:
             box_to_dashed_rect(fig, box[:4], color, linewidth)
         else:
             rect = box_to_rect(box[:4], color, linewidth)
             fig.add_patch(rect)
         if show_text:
-            text = str(int(box[4]))
+            cid = int(box[4])
+            if class_names is not None: cid = class_names[cid]
+            text = str(cid)
             if len(box) >= 6: text += " {:.3f}".format(box[5])
             fig.text(box[0], box[1], text,
                      bbox=dict(facecolor=(1, 1, 1), alpha=0.5), fontsize=fontsize, color=(0, 0, 0))
@@ -67,7 +78,7 @@ def draw_bbox(fig, bboxes, color=(0, 0, 0), linewidth=1, fontsize=5,
 def show_multi_det_result(image, outs, label=None, thresholds=None, colors=['red', 'blue', 'magenta', 'black'], label_color='green',
                           linewidth=1, fontsize=5, normalized_label=True, wh=None, MN=None, show_text=False,
                           figsize=(8, 4), show_combinations=None, combinations_name=None, hwspace=None, show_origin=False,
-                          use_real_line=None, axes=None, fig=None):
+                          use_real_line=None, class_names=None, axes=None, fig=None):
     """
     :param image: np.array, shape=(h, w, 3)
     :param outs: [detect_result１, detect_result2,  ..... detect_result_N],
@@ -77,15 +88,17 @@ def show_multi_det_result(image, outs, label=None, thresholds=None, colors=['red
     :param label_color: label box 's color
     :param normalized_label: box is normalize [0, 1] or not.
     :param wh: image shape, if use normalized_label=True, must given
-    :param MN:
-    :param show_text:
+    :param MN: subplot layout, for MN=(2, 3), will get 2*3 subplot
     :param figsize:
     :param show_combinations: sub-plot's content, [[0], [1], [0, 1]], means 0-subplot plot detect_result0,
             1-subplot plot detect_result1, and 2-subplot plot detect_result1 and detect_result2.
     :param combinations_name: sub-plot's title
     :param hwspace: subplot's distance of height and width
     :param show_origin: whether show origin image as last sub-plot.
-    :return:
+    :param show_text: whether show text on box.
+    :param use_real_line: whether use real line or dash line for every class gt box.
+    :param class_names: class name for every class.
+    :return: fig, axes of subplots.
     """
     if show_combinations is None:
         show_combinations = [(i,) for i in range(len(outs))]
@@ -129,10 +142,12 @@ def show_multi_det_result(image, outs, label=None, thresholds=None, colors=['red
             color = colors[show_boxes_id]
             threshold = thresholds[show_boxes_id] if thresholds is not None else None
             if bboxes is not None and len(bboxes) > 0:
-                draw_bbox(ax, bboxes, color, linewidth, fontsize, normalized_label, wh, show_text, use_real_line, threshold)
+                draw_bbox(ax, bboxes, color, linewidth, fontsize, normalized_label, wh, show_text, class_names,
+                          None, use_real_line, threshold)
 
         if label is not None and len(label) > 0:
-            draw_bbox(ax, label, label_color, linewidth, fontsize, normalized_label, wh, show_text, use_real_line)
+            draw_bbox(ax, label, label_color, linewidth, fontsize, normalized_label, wh, show_text, class_names,
+                      None, use_real_line)
 
     if hwspace is not None:
         fig.subplots_adjust(hspace=hwspace[0], wspace=hwspace[1])
