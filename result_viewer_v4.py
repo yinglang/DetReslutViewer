@@ -34,9 +34,9 @@ if __name__ == '__main__':
     # 3. show images
     thresholds = [float(e) for e in args.thresholds.split(',')]
     combinations_name = args.combinations_name.split(',')
-    
+
     var = {'index': 0, 'exit': False}
-    fig, axes = plt.subplots(2, 2, figsize=(16, 10))
+    fig, axes = plt.subplots(1, 1, figsize=(16, 10))
     last_next_bt = LastNextButtonV3(fig, axes, var, interval=0.1)
     while not var['exit']:
         var['index'] = var['index'] % len(dataset)
@@ -48,18 +48,6 @@ if __name__ == '__main__':
         bboxes = [result_data[image_name] for result_data in result_datas]
         print(image_name)
         data = data.astype(np.float32)
-        fig, axes = show_multi_det_result(data/255, bboxes, label, show_origin=True,
-                                          thresholds=thresholds, #[0.845791, 0.936530],
-                                          colors=['red', 'blue'],
-                                          label_color='green',
-                                          normalized_label=False,
-                                          # figsize=(16, 10), MN=(2, 2),
-                                          hwspace=(0.1, 0),
-                                          show_combinations=[[0], [1], [0, 1]],
-                                          combinations_name=['FPN', 'ATT', 'FPN+ATT'],
-                                          show_text=False,
-                                          class_names=None,
-                                          use_real_line=[True, False, False, False],
-                                          axes=axes, fig=fig)
+        show_result(data / 255, label, bboxes[0], ax=axes, score_th=thresholds[0])
 
         last_next_bt.wait_change()

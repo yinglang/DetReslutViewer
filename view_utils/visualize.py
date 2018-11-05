@@ -1,3 +1,4 @@
+# coding=utf-8
 import numpy as np
 import matplotlib.pyplot as plt
 import warnings
@@ -41,6 +42,7 @@ def draw_bbox(fig, bboxes, color=(0, 0, 0), linewidth=1, fontsize=5, normalized_
         class_names: class name for every class.
         class_colors: class gt box color for every class, if set, argument 'color' will not use
     """
+    if len(bboxes) == 0: return
     if np.max(bboxes) <= 1.:
         if normalized_label == False: warnings.warn(
             "[draw_bbox]:the label boxes' max value less than 1.0, may be it is noramlized box," +
@@ -153,3 +155,47 @@ def show_multi_det_result(image, outs, label=None, thresholds=None, colors=['red
         fig.subplots_adjust(hspace=hwspace[0], wspace=hwspace[1])
         plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
     return fig, axes
+
+
+def show_result(image, gts, det_boxes, color=None, score_th=0.2, overlap_th=0.5, ax=None, match_type=1):
+    if color is None:
+        color = {'fn': 'b', 'fp': 'r', 'tp': 'g'}
+    valid = np.all([det_boxes[:, 4] >= 0, det_boxes[:, 5] >= score_th], axis=0)
+    det_boxes = det_boxes[valid]
+    valid = np.all([gts[:, 4] > 0, gts[:, 5] == 0], axis=0)
+    ignore_gts = gts[valid][:, :5]
+    valid = np.all([gts[:, 4] == 0, gts[:, 5] == 0], axis=0)
+    gts = gts[valid][:, :5]
+
+    ax.imshow(image)
+    if len(ignore_gts):
+        max_class = int(ignore_gts[:, 4].max())+1
+        draw_bbox(ax, ignore_gts, color=color['tp'], use_real_line=[False]*max_class, normalized_label=False)
+    if len(gts) <= 0 or len(det_boxes) <= 0: return
+
+    det_boxes = np.array(sorted(det_boxes, key=lambda x: -x[5]))  # sort by score, desc
+    from mxnet import nd
+    ious = nd.contrib.box_iou(nd.array(gts[:, :4]), nd.array(det_boxes[:, :4])).asnumpy()
+    gt_indexs = ious.argmax(axis=0)
+    gt_indexs[ious.max(axis=0) < overlap_th] = -1
+
+    gt_box_type = np.array(['fn'] * len(gts))
+    det_box_type = np.array(['fp'] * len(det_boxes))
+    if match_type == 0:    # 1gt vs 1 pred, max score pred, first gt.
+        gt_select = np.array([False] * (len(gts)))
+        for i, gt_index in enumerate(gt_indexs):
+            if gt_index >= 0:
+                if not gt_select[gt_index]:
+                    gt_select[gt_index] = True
+                    det_box_type[i] = 'tp'
+                    gt_box_type[gt_index] = 'tp'
+    elif match_type == 1:   # 1 gt vs n pred
+        gt_box_type[gt_indexs] = 'tp'
+        det_box_type[gt_indexs >= 0] = 'tp'
+    elif match_type == 2:
+        gt_box_type[gt_indexs] = ''
+
+    draw_bbox(ax, gts[gt_box_type == 'fn'], color=color['fn'], normalized_label=False)
+    #draw_bbox(ax, gts[gt_box_type == 'tp'], color=color['tp'], use_real_line=[False], normalized_label=False)
+    draw_bbox(ax, det_boxes[det_box_type == 'fp'], color=color['fp'], normalized_label=False)
+    draw_bbox(ax, det_boxes[det_box_type == 'tp'], color=color['tp'], normalized_label=False)
