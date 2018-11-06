@@ -2,6 +2,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import warnings
+from .bbox_utils import *
 
 
 def box_to_dashed_rect(ax, box, color, linewidth=1):
@@ -16,14 +17,6 @@ def box_to_rect(box, color, linewidth=1):
     """convert an anchor box to a matplotlib rectangle"""
     return plt.Rectangle((box[0], box[1]), box[2]-box[0], box[3]-box[1],
                   fill=False, edgecolor=color, linewidth=linewidth)
-
-
-def inv_normalize_box(bboxes, w, h):
-    bboxes[:, 0] *= w
-    bboxes[:, 1] *= h
-    bboxes[:, 2] *= w
-    bboxes[:, 3] *= h
-    return bboxes
 
 
 def draw_bbox(fig, bboxes, color=(0, 0, 0), linewidth=1, fontsize=5, normalized_label=True, wh=None,
@@ -76,6 +69,7 @@ def draw_bbox(fig, bboxes, color=(0, 0, 0), linewidth=1, fontsize=5, normalized_
             if len(box) >= 6: text += " {:.3f}".format(box[5])
             fig.text(box[0], box[1], text,
                      bbox=dict(facecolor=(1, 1, 1), alpha=0.5), fontsize=fontsize, color=(0, 0, 0))
+
 
 def show_multi_det_result(image, outs, label=None, thresholds=None, colors=['red', 'blue', 'magenta', 'black'], label_color='green',
                           linewidth=1, fontsize=5, normalized_label=True, wh=None, MN=None, show_text=False,
@@ -157,45 +151,68 @@ def show_multi_det_result(image, outs, label=None, thresholds=None, colors=['red
     return fig, axes
 
 
-def show_result(image, gts, det_boxes, color=None, score_th=0.2, overlap_th=0.5, ax=None, match_type=1):
+def show_result(image, gts, det_boxes, color=None, score_th=0.2, overlap_th=0.5, ignore_iod_th=0.5,
+                ax=None, match_type=0):
+    """
+    match strange:
+        'tp': det box iou match non-ignore gt, all is 'tp'
+        'fp': det box iou match non-ignore gt, all is 'fp'
+        'fn': det box not iou match non-ignore gt, gt is 'fn'
+        'ignore': ignore det, ignore gt, det box not iou match non-ignore gt but iod match ignore gt, all is 'ignore'
+
+    split gts to non-ignore gts and ignore gts
+    match det box with non-ignore gts, get 'tp', 'fn'(miss gt)
+    match rest det box with ignore gt, to get 'ignore' det box
+    """
     if color is None:
         color = {'fn': 'b', 'fp': 'r', 'tp': 'g'}
-    valid = np.all([det_boxes[:, 4] >= 0, det_boxes[:, 5] >= score_th], axis=0)
-    det_boxes = det_boxes[valid]
-    valid = np.all([gts[:, 4] > 0, gts[:, 5] == 0], axis=0)
-    ignore_gts = gts[valid][:, :5]
-    valid = np.all([gts[:, 4] == 0, gts[:, 5] == 0], axis=0)
-    gts = gts[valid][:, :5]
+    det_boxes = det_boxes[np.all([det_boxes[:, 4] >= 0, det_boxes[:, 5] >= score_th], axis=0)]
+    gts = gts[np.all([gts[:, 4] >= 0, gts[:, 5] == 0], axis=0)]
+    ignore_gt_logical = (gts[:, 6] == 1)                                       # find out ignore gts.
+    ignore_gts = gts[ignore_gt_logical][:, :5]
+    non_ignore_gts = gts[np.logical_not(ignore_gt_logical)][:, :5]
 
     ax.imshow(image)
-    if len(ignore_gts):
+    if len(ignore_gts) > 0:
         max_class = int(ignore_gts[:, 4].max())+1
         draw_bbox(ax, ignore_gts, color=color['tp'], use_real_line=[False]*max_class, normalized_label=False)
-    if len(gts) <= 0 or len(det_boxes) <= 0: return
+    if len(non_ignore_gts) == 0 and len(det_boxes) == 0: return
+    elif len(det_boxes) == 0:
+        draw_bbox(ax, non_ignore_gts, color=color['fn'], normalized_label=False)
+        return
+    elif len(non_ignore_gts) == 0:
+        det_box_type = np.array(['fp'] * len(det_boxes))
+    else:   #len(non_ignore_gts) > 0 and len(det_boxes) > 0:
+        gt_box_type = np.array(['fn'] * len(non_ignore_gts))
+        det_box_type = np.array(['fp'] * len(det_boxes))
+        det_boxes = np.array(sorted(det_boxes, key=lambda x: -x[5]))            # sort by score, desc
+        from mxnet import nd
+        ious = nd.contrib.box_iou(nd.array(non_ignore_gts[:, :4]), nd.array(det_boxes[:, :4])).asnumpy()
+        gt_indexs = ious.argmax(axis=0)
+        # gt_indexs[ious.max(axis=0) < overlap_th] = -1
+        if match_type == 0:    # 1gt vs 1 pred, max score pred, first gt.
+            gt_select = np.array([False] * (len(non_ignore_gts)))
+            for i, gt_index in enumerate(gt_indexs):
+                if ious[gt_index, i] >= overlap_th:                                    # IOU >= overlap_th, matched
+                    if not gt_select[gt_index]:
+                        gt_select[gt_index] = True
+                        det_box_type[i] = 'tp'
+                        gt_box_type[gt_index] = 'tp'
+        elif match_type == 1:   # 1 gt vs n pred
+            gt_indexs[ious.max(axis=0) < overlap_th] = -1
+            gt_box_type[gt_indexs] = 'tp'
+            det_box_type[gt_indexs >= 0] = 'tp'
+        draw_bbox(ax, non_ignore_gts[gt_box_type == 'fn'], color=color['fn'], normalized_label=False)
 
-    det_boxes = np.array(sorted(det_boxes, key=lambda x: -x[5]))  # sort by score, desc
-    from mxnet import nd
-    ious = nd.contrib.box_iou(nd.array(gts[:, :4]), nd.array(det_boxes[:, :4])).asnumpy()
-    gt_indexs = ious.argmax(axis=0)
-    gt_indexs[ious.max(axis=0) < overlap_th] = -1
+    rest_det_logical = det_box_type != 'tp'
+    rest_det_boxes = det_boxes[rest_det_logical]
+    if len(rest_det_boxes) > 0 and len(ignore_gts) > 0:
+        rest_det_type = det_box_type[rest_det_logical]
+        iods = bbox_iod(rest_det_boxes, ignore_gts).max(axis=1)
+        print(np.sum(det_box_type == 'fp'), iods)
+        rest_det_type[iods > ignore_iod_th] = 'ignore'
+        det_box_type[rest_det_logical] = rest_det_type
 
-    gt_box_type = np.array(['fn'] * len(gts))
-    det_box_type = np.array(['fp'] * len(det_boxes))
-    if match_type == 0:    # 1gt vs 1 pred, max score pred, first gt.
-        gt_select = np.array([False] * (len(gts)))
-        for i, gt_index in enumerate(gt_indexs):
-            if gt_index >= 0:
-                if not gt_select[gt_index]:
-                    gt_select[gt_index] = True
-                    det_box_type[i] = 'tp'
-                    gt_box_type[gt_index] = 'tp'
-    elif match_type == 1:   # 1 gt vs n pred
-        gt_box_type[gt_indexs] = 'tp'
-        det_box_type[gt_indexs >= 0] = 'tp'
-    elif match_type == 2:
-        gt_box_type[gt_indexs] = ''
-
-    draw_bbox(ax, gts[gt_box_type == 'fn'], color=color['fn'], normalized_label=False)
     #draw_bbox(ax, gts[gt_box_type == 'tp'], color=color['tp'], use_real_line=[False], normalized_label=False)
     draw_bbox(ax, det_boxes[det_box_type == 'fp'], color=color['fp'], normalized_label=False)
     draw_bbox(ax, det_boxes[det_box_type == 'tp'], color=color['tp'], normalized_label=False)
