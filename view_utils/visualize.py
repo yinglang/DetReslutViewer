@@ -209,7 +209,7 @@ def show_result(image, gts, det_boxes, color=None, score_th=0.2, overlap_th=0.5,
     if len(rest_det_boxes) > 0 and len(ignore_gts) > 0:
         rest_det_type = det_box_type[rest_det_logical]
         iods = bbox_iod(rest_det_boxes, ignore_gts).max(axis=1)
-        print(np.sum(det_box_type == 'fp'), iods)
+        print(np.sum(det_box_type == 'fp'), 'iod is', iods)
         rest_det_type[iods > ignore_iod_th] = 'ignore'
         det_box_type[rest_det_logical] = rest_det_type
 

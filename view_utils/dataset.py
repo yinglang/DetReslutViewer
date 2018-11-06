@@ -208,3 +208,53 @@ class CaltechResultData(object):
 
     def __len__(self):
         return len(self._data)
+
+from pycocotools.coco import COCO
+class CocoDataset(object):
+    def __init__(self, data_dir, ann_file, det_file=None):
+        self.data_dir = data_dir
+        self.cocoGt = COCO(ann_file)
+        self.imgId = sorted(self.cocoGt.getImgIds())
+        if det_file is not None:
+            self.cocoDt = self.cocoGt.loadRes(det_file)
+        else:
+            self.cocoDt = None
+
+    def __getitem__(self, idx):
+        i = self.imgId[idx]
+        if i in self.cocoGt.imgToAnns:
+            bbox = self.turn_bbox(self.cocoGt.imgToAnns[i])
+        else:
+            bbox = [[-1] * 7]
+        if self.cocoDt is not None and i in self.cocoDt.imgToAnns:
+            det_bbox = self.turn_bbox(self.cocoDt.imgToAnns[i])
+        else:
+            det_bbox = [[-1]*7]
+        img = self.cocoGt.imgs[i]
+        im_name = img['im_name']
+        vset_name = im_name.split('_')[0]
+        im_path = os.path.join(self.data_dir, vset_name, im_name)
+        img = cv2.imread(im_path)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        if self.cocoDt is None:
+            return img, np.array(bbox), im_name
+        else:
+            return img, np.array(bbox), np.array(det_bbox), im_name
+
+    def turn_bbox(self, annos):
+        """
+        :param annos:
+        :return: [[x1, y1, x2, y2, cid, score/difficult, ignore]]
+        """
+        bbox = []
+        for anno in annos:
+            box = anno['bbox'] + [anno['category_id']] +\
+                  [0 if 'score' not in anno else anno['score']] +\
+                  [anno['ignore'] if 'ignore' in anno else 0]
+            box[2] = box[0] + box[2]
+            box[3] = box[1] + box[3]
+            bbox.append(box)
+        return bbox
+
+    def __len__(self):
+        return len(self.imgId)
