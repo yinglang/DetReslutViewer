@@ -231,8 +231,13 @@ class CocoDataset(object):
         else:
             det_bbox = [[-1]*7]
         img = self.cocoGt.imgs[i]
-        im_name = img['im_name']
-        vset_name = im_name.split('_')[0]
+        vset_name = ''
+        if 'im_name' in img:
+            im_name = img['im_name']
+            vset_name = im_name.split('_')[0]
+        elif 'file_name' in img: im_name = img['file_name']
+        else: raise ValueError("must contrain 'im_name' or 'file_name' in image info.")
+
         im_path = os.path.join(self.data_dir, vset_name, im_name)
         img = cv2.imread(im_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)

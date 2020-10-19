@@ -186,8 +186,13 @@ def show_result(image, gts, det_boxes, color=None, score_th=0.2, overlap_th=0.5,
         gt_box_type = np.array(['fn'] * len(non_ignore_gts))
         det_box_type = np.array(['fp'] * len(det_boxes))
         det_boxes = np.array(sorted(det_boxes, key=lambda x: -x[5]))            # sort by score, desc
-        from mxnet import nd
-        ious = nd.contrib.box_iou(nd.array(non_ignore_gts[:, :4]), nd.array(det_boxes[:, :4])).asnumpy()
+        try:
+            from mxnet import nd
+            ious = nd.contrib.box_iou(nd.array(non_ignore_gts[:, :4]), nd.array(det_boxes[:, :4])).asnumpy()
+        except BaseException as e:
+            warnings.warn(str(e))
+            from .bbox_utils import bbox_iou
+            ious = bbox_iou(non_ignore_gts[:, :4], det_boxes[:, :4])
         gt_indexs = ious.argmax(axis=0)
         # gt_indexs[ious.max(axis=0) < overlap_th] = -1
         if match_type == 0:    # 1gt vs 1 pred, max score pred, first gt.

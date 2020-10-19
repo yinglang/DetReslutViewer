@@ -20,10 +20,14 @@ if __name__ == '__main__':
     # args = parse_args()
 
     # 1.load dataset and load detection result
-    annFile = '/home/hui/github/DetectionProject/notebook_mxnet/Cityscapes/evaluation/val_gt.json'
-    resFile = './coco_citypersons_val_citypersons_1gpu_e2e_faster_rcnn_R-50-FPN_v1_60-69999_dt_sort.json'
-    data_dir = '/home/hui/dataset/Cityscapes/origin_img/leftImg8bit_trainvaltest/leftImg8bit/val/'
-    threshold = 0.99
+    # annFile = '/home/hui/github/DetectionProject/notebook_mxnet/Cityscapes/evaluation/val_gt.json'
+    # resFile = './coco_citypersons_val_citypersons_1gpu_e2e_faster_rcnn_R-50-FPN_v1_60-69999_dt_sort.json'
+    # data_dir = '/home/hui/dataset/Cityscapes/origin_img/leftImg8bit_trainvaltest/leftImg8bit/val/'
+    annFile = '/home/pengxk/TinyBenchmark/dataset/tiny_set/annotations/task/tiny_set_test_all.json'
+    resFile = '/home/pengxk/TinyBenchmark/tiny_benchmar_T3_10_13/COMPARE/vanilla-FRCN.json'
+    data_dir = '/home/pengxk/TinyBenchmark/dataset/tiny_set/test'
+    threshold = 0.5
+    iou_th = 0.5
     dataset = CocoDataset(data_dir, annFile, resFile)
 
     # 3. show images
@@ -34,6 +38,6 @@ if __name__ == '__main__':
         var['index'] = var['index'] % len(dataset)
         data, gt, det, im_name = dataset[var['index']]
         print(data.shape, gt.shape, det.shape, im_name)
-        show_result(data / 255, gt, det, ax=axes, score_th=threshold)
+        show_result(data / 255, gt, det, ax=axes, score_th=threshold, overlap_th=iou_th)
 
         last_next_bt.wait_change()
